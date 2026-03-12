@@ -1,7 +1,7 @@
 [project]
 name = "financial-mcp-server"
 dynamic = ["version"]
-description = "MCP server for AI-powered stock analysis and paper trading"
+description = "MCP server for AI-powered stock market intelligence"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"

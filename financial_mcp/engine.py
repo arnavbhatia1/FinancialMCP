@@ -61,7 +61,7 @@ def percentile_rank(value: float, all_values: list[float]) -> float:
 
 _VALUATION_SUBS = {
     "pe_ratio": 0.25,
-    "ev_ebitda": 0.25,
+    "ev_to_ebitda": 0.25,
     "price_to_book": 0.20,
     "dividend_yield": 0.15,
     "market_cap": 0.15,
@@ -83,12 +83,19 @@ def compute_valuation_composite(
     scores: dict[str, float] = {}
 
     # -- PE, EV/EBITDA, P/B: lower relative to sector median is better ------
-    for key in ("pe_ratio", "ev_ebitda", "price_to_book"):
+    sector = fundamentals.get("sector")
+    sector_data = sector_medians.get(sector, {}) if sector else {}
+    median_map = {
+        "pe_ratio": sector_data.get("median_pe"),
+        "ev_to_ebitda": sector_data.get("median_ev_ebitda"),
+        "price_to_book": None,  # no sector median available
+    }
+    for key in ("pe_ratio", "ev_to_ebitda", "price_to_book"):
         value = fundamentals.get(key)
-        median = sector_medians.get(key)
-        if value is None or median is None or median == 0:
+        med = median_map.get(key)
+        if value is None or med is None or med == 0:
             continue
-        ratio = value / median
+        ratio = value / med
         scores[key] = 100.0 * (1.0 - normalize(ratio, 0.5, 2.0))
 
     # -- Dividend yield: higher is better ------------------------------------
@@ -344,7 +351,7 @@ def score_universe(
         return []
 
     batch_fundamentals = market_data.get_batch_fundamentals(symbols)
-    sector_medians = market_data.get_sector_medians()
+    sector_medians = market_data.get_sector_medians(batch_fundamentals)
 
     # Gather momentum signals for the full universe so percentile ranks are
     # computed against the complete peer set.

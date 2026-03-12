@@ -9,6 +9,8 @@ from statistics import median
 
 import yfinance as yf
 
+from .utils import TRADING_DAYS_PER_YEAR, safe_round
+
 logger = logging.getLogger(__name__)
 
 _FUNDAMENTALS_FIELD_MAP = {
@@ -20,8 +22,6 @@ _FUNDAMENTALS_FIELD_MAP = {
     "sector": "sector",
     "industry": "industry",
 }
-
-_TRADING_DAYS_PER_YEAR = 252
 
 
 def get_fundamentals(symbol: str) -> dict | None:
@@ -102,7 +102,7 @@ def get_momentum_signals(symbol: str) -> dict | None:
         daily_returns = closes.pct_change().dropna()
         rolling_std = daily_returns.rolling(window=30).std()
         volatility = (
-            float(rolling_std.iloc[-1] * (_TRADING_DAYS_PER_YEAR ** 0.5))
+            float(rolling_std.iloc[-1] * (TRADING_DAYS_PER_YEAR ** 0.5))
             if len(rolling_std) >= 30 and rolling_std.iloc[-1] is not None
             else None
         )
@@ -125,11 +125,11 @@ def get_momentum_signals(symbol: str) -> dict | None:
         max_drawdown = float(drawdowns.min())
 
         return {
-            "price_momentum_30d": _safe_round(momentum_30d),
-            "price_momentum_90d": _safe_round(momentum_90d),
-            "volatility": _safe_round(volatility),
-            "relative_strength": _safe_round(relative_strength),
-            "max_drawdown": _safe_round(max_drawdown),
+            "price_momentum_30d": safe_round(momentum_30d),
+            "price_momentum_90d": safe_round(momentum_90d),
+            "volatility": safe_round(volatility),
+            "relative_strength": safe_round(relative_strength),
+            "max_drawdown": safe_round(max_drawdown),
         }
     except Exception:
         logger.exception("get_momentum_signals failed for %s", symbol)
@@ -174,18 +174,9 @@ def get_sector_medians(batch_fundamentals: dict[str, dict]) -> dict[str, dict]:
             e["ev_to_ebitda"] for e in entries if e.get("ev_to_ebitda") is not None
         ]
         result[sector] = {
-            "median_pe": _safe_round(median(pe_values)) if pe_values else None,
-            "median_ev_ebitda": _safe_round(median(ev_values)) if ev_values else None,
+            "median_pe": safe_round(median(pe_values)) if pe_values else None,
+            "median_ev_ebitda": safe_round(median(ev_values)) if ev_values else None,
         }
     return result
 
 
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
-def _safe_round(value: float | None, decimals: int = 4) -> float | None:
-    """Round *value* if it is not None."""
-    if value is None:
-        return None
-    return round(float(value), decimals)

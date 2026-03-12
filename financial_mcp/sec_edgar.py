@@ -8,10 +8,10 @@ Every public function catches exceptions internally and returns None or an
 empty container -- callers never need to handle EDGAR errors.
 """
 
-import json
 import logging
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from urllib.parse import urlencode
 
 import requests
 
@@ -72,7 +72,7 @@ def _load_ticker_map() -> None:
 
     try:
         data = resp.json()
-    except (json.JSONDecodeError, ValueError):
+    except ValueError:
         logger.exception("Invalid JSON from company_tickers.json")
         return
 
@@ -203,7 +203,7 @@ def get_insider_trades(symbol: str, days: int = 90) -> list[dict] | None:
         accessions = recent.get("accessionNumber", [])
         primary_docs = recent.get("primaryDocument", [])
 
-        cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
         insider_forms = {"3", "4", "5"}
 
         results: list[dict] = []
@@ -316,7 +316,7 @@ def search_filings(
                 params["enddt"] = date_to
 
         url = "https://efts.sec.gov/LATEST/search-index"
-        resp = _sec_get(f"{url}?{_encode_params(params)}")
+        resp = _sec_get(f"{url}?{urlencode(params)}")
         if resp is None:
             return None
 
@@ -360,12 +360,3 @@ def search_filings(
         return None
 
 
-# ---------------------------------------------------------------------------
-# Internal helpers (continued)
-# ---------------------------------------------------------------------------
-
-def _encode_params(params: dict[str, str]) -> str:
-    """URL-encode query parameters."""
-    from urllib.parse import urlencode
-
-    return urlencode(params)

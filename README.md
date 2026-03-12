@@ -1,8 +1,8 @@
 # financial-mcp-server
 
-MCP server for AI-powered stock analysis and paper trading. 33 tools for any MCP-compatible AI agent.
+MCP server for AI-powered stock market intelligence. 24 tools for any MCP-compatible AI agent.
 
-No API keys required (FRED key optional). Market data from yfinance, SEC EDGAR, CFTC, Treasury.gov, and Google Trends. Portfolio state in local SQLite.
+No API keys required (FRED key optional). Market data from yfinance, SEC EDGAR, CFTC, Treasury.gov, and Google Trends.
 
 ## Tools
 
@@ -10,23 +10,11 @@ No API keys required (FRED key optional). Market data from yfinance, SEC EDGAR, 
 | Tool | What it does |
 |------|-------------|
 | `analyze_ticker` | Full analysis: fundamentals, momentum, composite score |
-| `analyze_portfolio` | Holdings, allocations, performance, risk summary |
 | `scan_universe` | Rank tickers by composite score |
 | `score_ticker` | Composite score (0-100) with breakdown |
 | `get_fundamentals` | PE, EV/EBITDA, P/B, dividend yield, market cap |
 | `get_momentum` | 30d/90d momentum, volatility, relative strength |
 | `get_price` | Current price |
-
-### Paper Trading
-| Tool | What it does |
-|------|-------------|
-| `create_portfolio` | Create a paper trading portfolio |
-| `run_rebalance` | Score universe, generate signals, execute trades |
-| `execute_buy` | Buy shares (paper) |
-| `execute_sell` | Sell shares (paper) |
-| `get_holdings` | Portfolio holdings |
-| `get_trades` | Trade history |
-| `check_risk` | Stress score, scenario drawdowns, allocations |
 
 ### SEC EDGAR
 | Tool | What it does |

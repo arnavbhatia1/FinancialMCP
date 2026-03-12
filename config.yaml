@@ -3,32 +3,8 @@ server:
   port: 8520
   name: "financial-mcp"
 
-database:
-  path: "data/financial_mcp.db"
-
 scoring:
   weights:
     valuation: 0.40
     momentum: 0.35
     risk: 0.25
-  buy_threshold: 65
-  sell_threshold: 35
-
-position_limits:
-  conservative:
-    max_position: 0.05
-    max_sector: 0.20
-    min_cash: 0.15
-  moderate:
-    max_position: 0.08
-    max_sector: 0.30
-    min_cash: 0.10
-  aggressive:
-    max_position: 0.12
-    max_sector: 0.40
-    min_cash: 0.05
-
-stress_thresholds:
-  conservative: { warning: 0.20, action: 0.25 }
-  moderate: { warning: 0.28, action: 0.33 }
-  aggressive: { warning: 0.35, action: 0.40 }

@@ -12,6 +12,8 @@ from datetime import datetime, timedelta
 
 import yfinance as yf
 
+from .utils import safe_round
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -55,13 +57,6 @@ _RECOMMENDATIONS: dict[str, str] = {
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
-
-
-def _safe_round(value: float | None, decimals: int = 4) -> float | None:
-    """Round *value* if it is not None."""
-    if value is None:
-        return None
-    return round(float(value), decimals)
 
 
 def _classify_regime(score: int, crash_signal: int) -> str:
@@ -185,13 +180,13 @@ def _compute_signals(spy_close, vix_close) -> dict | None:
             "crash_signal": crash_signal,
         },
         "details": {
-            "spy_price": _safe_round(current_price),
-            "spy_50sma": _safe_round(sma_50),
-            "spy_200sma": _safe_round(sma_200),
-            "spy_20d_return": _safe_round(return_20d),
-            "spy_52w_high": _safe_round(high_52w),
-            "spy_5d_return": _safe_round(return_5d),
-            "vix": _safe_round(vix_current),
+            "spy_price": safe_round(current_price),
+            "spy_50sma": safe_round(sma_50),
+            "spy_200sma": safe_round(sma_200),
+            "spy_20d_return": safe_round(return_20d),
+            "spy_52w_high": safe_round(high_52w),
+            "spy_5d_return": safe_round(return_5d),
+            "vix": safe_round(vix_current),
             "vix_level": vix_level,
         },
     }
@@ -400,11 +395,11 @@ def get_vix_analysis() -> dict | None:
             signal = "panic"
 
         return {
-            "current": _safe_round(current),
-            "percentile_1y": _safe_round(percentile_1y),
-            "mean_1y": _safe_round(mean_1y),
-            "high_1y": _safe_round(high_1y),
-            "low_1y": _safe_round(low_1y),
+            "current": safe_round(current),
+            "percentile_1y": safe_round(percentile_1y),
+            "mean_1y": safe_round(mean_1y),
+            "high_1y": safe_round(high_1y),
+            "low_1y": safe_round(low_1y),
             "term_structure": term_structure,
             "signal": signal,
         }

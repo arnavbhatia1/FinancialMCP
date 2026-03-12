@@ -10,7 +10,7 @@ empty container -- callers never need to handle Treasury API errors.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import requests
 
@@ -143,7 +143,7 @@ def get_yield_curve_daily(days: int = 5) -> list[dict] | None:
     Returns None on failure or an empty list if no data is found.
     """
     try:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         month = now.month
         year = now.year
 
@@ -307,7 +307,7 @@ def _parse_odata_date(value: str) -> str:
     if value.startswith("/Date(") and value.endswith(")/"):
         try:
             ms = int(value[6:-2])
-            return datetime.utcfromtimestamp(ms / 1000).strftime("%Y-%m-%d")
+            return datetime.fromtimestamp(ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
         except (ValueError, OSError):
             return value
 
