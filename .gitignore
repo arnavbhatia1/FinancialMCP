@@ -6,3 +6,4 @@ build/
 data/*.db
 .env
 .venv/
+*.egg-info

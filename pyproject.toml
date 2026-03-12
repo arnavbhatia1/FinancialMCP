@@ -2,16 +2,44 @@
 name = "financial-mcp"
 version = "0.1.0"
 description = "MCP server for AI-powered stock analysis and paper trading"
+readme = "README.md"
+license = "MIT"
 requires-python = ">=3.10"
+authors = [
+    {name = "Arnav Bhat", email = "arnav.cal@gmail.com"},
+]
+keywords = ["mcp", "finance", "stock", "trading", "paper-trading", "yfinance", "ai"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
 dependencies = [
     "mcp[cli]>=1.0.0",
     "yfinance>=0.2.31",
     "pyyaml>=6.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/arnavbhat1/financial-mcp"
+Repository = "https://github.com/arnavbhat1/financial-mcp"
+Issues = "https://github.com/arnavbhat1/financial-mcp/issues"
+
 [project.scripts]
 financial-mcp = "financial_mcp.server:main"
 
 [build-system]
-requires = ["setuptools>=68.0"]
-build-backend = "setuptools.backends._legacy:_Backend"
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["financial_mcp*"]
+
+[tool.setuptools.package-data]
+financial_mcp = ["../config.yaml"]
