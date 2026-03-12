@@ -1,6 +1,6 @@
 [project]
-name = "financial-mcp"
-version = "0.1.0"
+name = "financial-mcp-server"
+dynamic = ["version"]
 description = "MCP server for AI-powered stock analysis and paper trading"
 readme = "README.md"
 license = "MIT"
@@ -35,8 +35,12 @@ Issues = "https://github.com/arnavbhat1/financial-mcp/issues"
 financial-mcp = "financial_mcp.server:main"
 
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
+requires = ["setuptools>=68.0", "wheel", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+version_scheme = "post-release"
+local_scheme = "no-local-version"
 
 [tool.setuptools.packages.find]
 include = ["financial_mcp*"]

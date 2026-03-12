@@ -2,23 +2,44 @@ name: Publish to PyPI
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [master]
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write  # Trusted publisher (no API token needed)
+      contents: write   # To create tags
+      id-token: write   # Trusted publisher
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for setuptools-scm
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install build tools
-        run: pip install build
+        run: pip install build setuptools-scm
+
+      - name: Get next version
+        id: version
+        run: |
+          CURRENT=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0")
+          # Increment patch: v0.1.0 -> v0.1.1
+          MAJOR=$(echo $CURRENT | sed 's/v//' | cut -d. -f1)
+          MINOR=$(echo $CURRENT | sed 's/v//' | cut -d. -f2)
+          PATCH=$(echo $CURRENT | sed 's/v//' | cut -d. -f3)
+          NEXT="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+          echo "tag=$NEXT" >> $GITHUB_OUTPUT
+          echo "Next version: $NEXT"
+
+      - name: Create tag
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag ${{ steps.version.outputs.tag }}
+          git push origin ${{ steps.version.outputs.tag }}
 
       - name: Build package
         run: python -m build
