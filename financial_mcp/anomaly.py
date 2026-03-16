@@ -32,7 +32,7 @@ _DEFAULT_SYMBOLS: list[str] = [
 
 
 def scan_anomalies(
-    symbols: list[str],
+    symbols: list[str] | None = None,
     lookback_days: int = 30,
 ) -> list[dict]:
     """Scan *symbols* for anomalies over the last *lookback_days*.
@@ -45,6 +45,7 @@ def scan_anomalies(
     ``value``.
     """
     try:
+        symbols = symbols or _DEFAULT_SYMBOLS
         if not symbols:
             return []
 
@@ -233,6 +234,7 @@ def scan_gap_movers(
                     results.append({
                         "symbol": symbol,
                         "gap_pct": round(gap_pct, 2),
+                        "gap_percent": round(gap_pct, 2),
                         "direction": "up" if gap_pct > 0 else "down",
                         "open": round(today_open, 2),
                         "prev_close": round(prev_close, 2),
@@ -265,7 +267,17 @@ def _extract_ticker_df(df, symbol: str, single_ticker: bool):
     """
     try:
         if single_ticker:
-            ticker_df = df.copy()
+            # yfinance 1.2+ always returns MultiIndex even for single tickers.
+            # Flatten it by extracting the symbol if the columns are multi-level.
+            if hasattr(df.columns, "nlevels") and df.columns.nlevels > 1:
+                if symbol in df.columns.get_level_values(0):
+                    ticker_df = df[symbol].copy()
+                elif symbol in df.columns.get_level_values(1):
+                    ticker_df = df.xs(symbol, axis=1, level=1).copy()
+                else:
+                    ticker_df = df.droplevel(0, axis=1).copy()
+            else:
+                ticker_df = df.copy()
         else:
             if symbol not in df.columns.get_level_values(0):
                 # Try level 1 (group_by="ticker" puts ticker at level 0,

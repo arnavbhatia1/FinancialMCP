@@ -13,7 +13,7 @@ _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _root not in sys.path:
     sys.path.insert(0, _root)
 
-from financial_mcp import market_data, engine
+from financial_mcp import market_data, engine, db, broker, portfolio, risk
 from financial_mcp import sec_edgar, fred, cftc, trends, treasury, regime, anomaly
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,13 @@ def _load_config() -> dict:
 
 _config = _load_config()
 _server_cfg = _config.get("server", {})
+
+# Set DB path from config
+_db_path = _config.get("database", {}).get("path", "data/financial_mcp.db")
+if not os.path.isabs(_db_path):
+    _db_path = os.path.join(_root, _db_path)
+db.set_db_path(_db_path)
+db.init_db()
 
 # ── MCP Server ────────────────────────────────────────────────────────────────
 
@@ -483,7 +490,7 @@ def scan_anomalies(symbols: str = "", lookback_days: int = 30) -> str:
     """
     try:
         sym_list = _parse_symbols(symbols)
-        data = anomaly.scan_anomalies(sym_list or [], lookback_days)
+        data = anomaly.scan_anomalies(sym_list, lookback_days)
         return _json({"count": len(data), "anomalies": data})
     except Exception as e:
         logger.exception("scan_anomalies failed")
@@ -522,6 +529,264 @@ def scan_gap_movers(symbols: str = "", min_gap_pct: float = 2.0) -> str:
     except Exception as e:
         logger.exception("scan_gap_movers failed")
         return _error("scan_gap_movers", str(e))
+
+
+# ── Portfolio & Trading Tools ────────────────────────────────────────────────
+
+@mcp.tool()
+def create_portfolio(
+    starting_capital: float,
+    risk_profile: str,
+    investment_horizon: str,
+    name: str = "Default",
+) -> str:
+    """Create a new paper trading portfolio.
+
+    Args:
+        starting_capital: Initial cash amount (10000-1000000).
+        risk_profile: One of 'conservative', 'moderate', 'aggressive'.
+        investment_horizon: One of 'short', 'medium', 'long'.
+        name: Optional portfolio name.
+    """
+    try:
+        pid = portfolio.create_portfolio(starting_capital, risk_profile, investment_horizon, name)
+        port = db.get_portfolio(pid)
+        return _json(port)
+    except ValueError as e:
+        return _error("create_portfolio", str(e))
+    except Exception as e:
+        logger.exception("create_portfolio failed")
+        return _error("create_portfolio", str(e))
+
+
+@mcp.tool()
+def analyze_portfolio(portfolio_id: str) -> str:
+    """Portfolio summary with holdings, allocations, performance, and risk."""
+    try:
+        summary = portfolio.get_summary(portfolio_id)
+        if summary is None:
+            return _error("analyze_portfolio", f"Portfolio {portfolio_id} not found")
+
+        perf = portfolio.compute_performance(portfolio_id)
+        holdings_list = db.get_holdings(portfolio_id)
+        stress = risk.compute_stress_score(
+            holdings_list, summary["total_value"], _config
+        )
+
+        return _json({
+            "portfolio": summary["portfolio"],
+            "total_value": summary["total_value"],
+            "holdings_value": summary["holdings_value"],
+            "daily_change": summary["daily_change"],
+            "daily_change_pct": summary["daily_change_pct"],
+            "holdings": summary["holdings"],
+            "sector_allocation": summary["sector_allocation"],
+            "geo_allocation": summary["geo_allocation"],
+            "performance": perf,
+            "risk": stress,
+        })
+    except Exception as e:
+        logger.exception("analyze_portfolio failed for %s", portfolio_id)
+        return _error("analyze_portfolio", str(e))
+
+
+@mcp.tool()
+def get_holdings(portfolio_id: str) -> str:
+    """List current holdings in a portfolio with values and metadata."""
+    try:
+        port = db.get_portfolio(portfolio_id)
+        if port is None:
+            return _error("get_holdings", f"Portfolio {portfolio_id} not found")
+        holdings = db.get_holdings(portfolio_id)
+        return _json({"portfolio_id": portfolio_id, "count": len(holdings), "holdings": holdings})
+    except Exception as e:
+        logger.exception("get_holdings failed for %s", portfolio_id)
+        return _error("get_holdings", str(e))
+
+
+@mcp.tool()
+def get_trades(portfolio_id: str, status: str = "") -> str:
+    """Get trade history for a portfolio, optionally filtered by status.
+
+    Args:
+        portfolio_id: The portfolio ID.
+        status: Optional filter: 'executed', 'proposed', 'rejected'. Empty for all.
+    """
+    try:
+        port = db.get_portfolio(portfolio_id)
+        if port is None:
+            return _error("get_trades", f"Portfolio {portfolio_id} not found")
+        status_filter = status.strip() if status.strip() else None
+        trades = db.get_trades(portfolio_id, status=status_filter)
+        return _json({"portfolio_id": portfolio_id, "count": len(trades), "trades": trades})
+    except Exception as e:
+        logger.exception("get_trades failed for %s", portfolio_id)
+        return _error("get_trades", str(e))
+
+
+@mcp.tool()
+def execute_buy(portfolio_id: str, symbol: str, shares: int) -> str:
+    """Buy shares of a stock/ETF in a portfolio.
+
+    Args:
+        portfolio_id: The portfolio to trade in.
+        symbol: Ticker symbol to buy.
+        shares: Number of whole shares to buy.
+    """
+    try:
+        paper = broker.PaperBroker(portfolio_id)
+        result = paper.execute_buy(symbol.upper().strip(), int(shares))
+        return _json(result)
+    except ValueError as e:
+        return _error("execute_buy", str(e))
+    except Exception as e:
+        logger.exception("execute_buy failed")
+        return _error("execute_buy", str(e))
+
+
+@mcp.tool()
+def execute_sell(portfolio_id: str, symbol: str, shares: int) -> str:
+    """Sell shares of a stock/ETF from a portfolio.
+
+    Args:
+        portfolio_id: The portfolio to trade in.
+        symbol: Ticker symbol to sell.
+        shares: Number of whole shares to sell.
+    """
+    try:
+        paper = broker.PaperBroker(portfolio_id)
+        result = paper.execute_sell(symbol.upper().strip(), int(shares))
+        return _json(result)
+    except ValueError as e:
+        return _error("execute_sell", str(e))
+    except Exception as e:
+        logger.exception("execute_sell failed")
+        return _error("execute_sell", str(e))
+
+
+@mcp.tool()
+def run_rebalance(portfolio_id: str, trigger: str = "agent", symbols: str = "") -> str:
+    """Run a full rebalance cycle: score universe, generate signals, execute trades.
+
+    Args:
+        portfolio_id: The portfolio to rebalance.
+        trigger: What triggered this rebalance (e.g. 'agent', 'manual', 'scheduled').
+        symbols: Comma-separated list of symbols to score. If empty, uses current holdings + large-caps.
+    """
+    try:
+        port = db.get_portfolio(portfolio_id)
+        if port is None:
+            return _error("run_rebalance", f"Portfolio {portfolio_id} not found")
+
+        risk_profile = port["risk_profile"]
+        holdings_list = db.get_holdings(portfolio_id)
+
+        if symbols.strip():
+            universe = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+        else:
+            held = [h["symbol"] for h in holdings_list]
+            defaults = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META",
+                        "TSLA", "JPM", "V", "JNJ", "SPY", "VOO", "VTI",
+                        "QQQ", "BND", "SCHD"]
+            universe = list(set(held + defaults))
+
+        scores = engine.score_universe(
+            symbols=universe,
+            holdings=holdings_list,
+            portfolio_value=port["current_cash"] + sum(
+                h["shares"] * h["avg_cost_basis"] for h in holdings_list
+            ),
+            risk_profile=risk_profile,
+            config=_config,
+        )
+
+        scoring_cfg = _config.get("scoring", {})
+        buy_threshold = scoring_cfg.get("buy_threshold", 65)
+        sell_threshold = scoring_cfg.get("sell_threshold", 35)
+
+        held_symbols = {h["symbol"] for h in holdings_list}
+        buys, sells = [], []
+        for scored in scores:
+            sym, sc = scored["symbol"], scored["score"]
+            if sc >= buy_threshold and sym not in held_symbols:
+                buys.append(scored)
+            elif sc <= sell_threshold and sym in held_symbols:
+                sells.append(scored)
+
+        paper = broker.PaperBroker(portfolio_id)
+        executed_trades = []
+
+        for sell in sells:
+            holding = next((h for h in holdings_list if h["symbol"] == sell["symbol"]), None)
+            if holding:
+                result = paper.execute_sell(sell["symbol"], int(holding["shares"]))
+                executed_trades.append({"action": "sell", "symbol": sell["symbol"],
+                                        "result": result, "score": sell["score"]})
+
+        port_refreshed = db.get_portfolio(portfolio_id)
+        available_cash = port_refreshed["current_cash"]
+        position_limits = _config.get("position_limits", {}).get(risk_profile, {})
+        max_position_pct = position_limits.get("max_position", 0.08)
+        min_cash_pct = position_limits.get("min_cash", 0.10)
+        portfolio_value = port_refreshed["current_cash"] + sum(
+            h["shares"] * h["avg_cost_basis"] for h in db.get_holdings(portfolio_id)
+        )
+        deploy_budget = max(0, available_cash - portfolio_value * min_cash_pct) * 0.80
+
+        if buys and deploy_budget > 0:
+            total_score = sum(b["score"] for b in buys)
+            for buy in buys:
+                if total_score <= 0:
+                    break
+                weight = buy["score"] / total_score
+                allocation = min(deploy_budget * weight, portfolio_value * max_position_pct)
+                price = market_data.get_current_price(buy["symbol"])
+                if price and price > 0:
+                    share_count = int(allocation / price)
+                    if share_count > 0:
+                        result = paper.execute_buy(buy["symbol"], share_count)
+                        executed_trades.append({"action": "buy", "symbol": buy["symbol"],
+                                                "result": result, "score": buy["score"]})
+
+        snapshot = portfolio.take_snapshot(portfolio_id)
+        db.update_portfolio(portfolio_id, last_rebalanced_at=snapshot["snapshot_date"])
+
+        return _json({
+            "portfolio_id": portfolio_id, "trigger": trigger,
+            "universe_scored": len(scores),
+            "buy_signals": len(buys), "sell_signals": len(sells),
+            "trades_executed": executed_trades, "snapshot": snapshot,
+        })
+    except Exception as e:
+        logger.exception("run_rebalance failed for %s", portfolio_id)
+        return _error("run_rebalance", str(e))
+
+
+@mcp.tool()
+def check_risk(portfolio_id: str) -> str:
+    """Assess portfolio risk: stress score, scenario drawdowns, sector/geo allocation."""
+    try:
+        port = db.get_portfolio(portfolio_id)
+        if port is None:
+            return _error("check_risk", f"Portfolio {portfolio_id} not found")
+
+        holdings_list = db.get_holdings(portfolio_id)
+        portfolio_value = port["current_cash"] + sum(
+            h["shares"] * h["avg_cost_basis"] for h in holdings_list
+        )
+
+        stress = risk.compute_stress_score(holdings_list, portfolio_value, _config)
+        sector_alloc = risk.get_sector_allocation(holdings_list, portfolio_value)
+        geo_alloc = risk.get_geo_allocation(holdings_list, portfolio_value)
+
+        return _json({
+            "portfolio_id": portfolio_id, "portfolio_value": portfolio_value,
+            "stress": stress, "sector_allocation": sector_alloc,
+            "geo_allocation": geo_alloc,
+        })
+    except Exception as e:
+        logger.exception("check_risk failed for %s", portfolio_id)
+        return _error("check_risk", str(e))
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

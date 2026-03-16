@@ -101,7 +101,7 @@ def compute_valuation_composite(
     # -- Dividend yield: higher is better ------------------------------------
     div_yield = fundamentals.get("dividend_yield")
     if div_yield is not None:
-        scores["dividend_yield"] = normalize(div_yield, 0.0, 0.06) * 100.0
+        scores["dividend_yield"] = normalize(div_yield / 100, 0.0, 0.06) * 100.0
 
     # -- Market cap: larger = more stable ------------------------------------
     market_cap = fundamentals.get("market_cap")
@@ -124,8 +124,8 @@ def compute_valuation_composite(
 # ---------------------------------------------------------------------------
 
 _MOMENTUM_SUBS = {
-    "momentum_30d": 0.30,
-    "momentum_90d": 0.30,
+    "price_momentum_30d": 0.30,
+    "price_momentum_90d": 0.30,
     "relative_strength": 0.25,
     "volatility": 0.15,
 }
@@ -144,7 +144,7 @@ def compute_momentum_composite(
 
     scores: dict[str, float] = {}
 
-    for key in ("momentum_30d", "momentum_90d", "relative_strength"):
+    for key in ("price_momentum_30d", "price_momentum_90d", "relative_strength"):
         value = momentum.get(key)
         if value is None:
             continue

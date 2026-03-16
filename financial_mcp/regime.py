@@ -395,13 +395,16 @@ def get_vix_analysis() -> dict | None:
             signal = "panic"
 
         return {
+            "vix": safe_round(current),
             "current": safe_round(current),
+            "vix_signal": signal,
+            "signal": signal,
+            "vix_1y_percentile": safe_round(percentile_1y * 100),
             "percentile_1y": safe_round(percentile_1y),
             "mean_1y": safe_round(mean_1y),
             "high_1y": safe_round(high_1y),
             "low_1y": safe_round(low_1y),
             "term_structure": term_structure,
-            "signal": signal,
         }
     except Exception:
         logger.exception("get_vix_analysis failed")
