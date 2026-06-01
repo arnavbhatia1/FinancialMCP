@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 
 import yfinance as yf
 
+from .market_data import yf_download
 from .utils import safe_round
 
 logger = logging.getLogger(__name__)
@@ -211,7 +212,7 @@ def detect_regime() -> dict | None:
         end = datetime.now()
         start = end - timedelta(days=365)
 
-        data = yf.download(
+        data = yf_download(
             ["SPY", "^VIX"],
             start=start.strftime("%Y-%m-%d"),
             end=end.strftime("%Y-%m-%d"),
@@ -266,7 +267,7 @@ def get_regime_history(months: int = 12) -> list[dict] | None:
         end = datetime.now()
         start = end - timedelta(days=(months + 12) * 31)
 
-        data = yf.download(
+        data = yf_download(
             ["SPY", "^VIX"],
             start=start.strftime("%Y-%m-%d"),
             end=end.strftime("%Y-%m-%d"),
@@ -348,7 +349,7 @@ def get_vix_analysis() -> dict | None:
         end = datetime.now()
         start = end - timedelta(days=365)
 
-        vix_data = yf.download(
+        vix_data = yf_download(
             "^VIX",
             start=start.strftime("%Y-%m-%d"),
             end=end.strftime("%Y-%m-%d"),

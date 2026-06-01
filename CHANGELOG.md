@@ -3,6 +3,22 @@
 All notable changes to **financial-mcp-server** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.1.10] - 2026-06-01
+
+### Fixed
+- **Market data now works from cloud / datacenter hosts** (Streamlit Cloud, AWS,
+  GCP). Yahoo blocks requests with a non-browser TLS fingerprint, so `yfinance`
+  worked on a laptop but returned empty prices/fundamentals/momentum on cloud.
+  All yfinance access now goes through a `curl_cffi` session impersonating Chrome
+  (`market_data`, `anomaly`, `regime`), which presents a real browser fingerprint.
+- `get_current_price` now reads from price history first (reachable on cloud even
+  when the `.info`/quote endpoint is throttled) before falling back to `.info`.
+
+### Added
+- Short in-process TTL cache for `.info` / history lookups, cutting yfinance call
+  volume (and thus rate-limiting) when the same tickers are scanned repeatedly.
+- `curl_cffi` is now an explicit dependency.
+
 ## [0.1.9] - 2026-06-01
 
 ### Fixed

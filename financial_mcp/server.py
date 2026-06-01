@@ -97,10 +97,15 @@ except Exception:
 
 # ── MCP Server ────────────────────────────────────────────────────────────────
 
+# log_level flows through to uvicorn's access logger; default WARNING so the
+# SSE server doesn't print a line per tool call. Set FINANCIAL_MCP_LOG_LEVEL=DEBUG
+# (or INFO) to see request traffic.
+_log_level = os.environ.get("FINANCIAL_MCP_LOG_LEVEL", "WARNING").upper()
 mcp = FastMCP(
     _server_cfg.get("name", "financial-mcp"),
     host=_server_cfg.get("host", "0.0.0.0"),
     port=_server_cfg.get("port", 8520),
+    log_level=_log_level,
 )
 
 
@@ -863,11 +868,18 @@ def main():
     )
     args = parser.parse_args()
 
+    log_level = os.environ.get("FINANCIAL_MCP_LOG_LEVEL", "INFO").upper()
     logging.basicConfig(
-        level=logging.INFO,
+        level=getattr(logging, log_level, logging.INFO),
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
         stream=sys.stderr,
     )
+    # The SSE transport logs one access line + one "Processing request" line per
+    # tool call — far too noisy when an agent polls every second. Silence those
+    # high-volume loggers unless explicitly debugging (FINANCIAL_MCP_LOG_LEVEL=DEBUG).
+    if log_level != "DEBUG":
+        logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+        logging.getLogger("mcp").setLevel(logging.WARNING)
 
     if args.transport == "sse":
         logger.info("Starting FinancialMCP (SSE) on %s:%s",

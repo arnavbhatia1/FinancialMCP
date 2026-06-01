@@ -14,6 +14,8 @@ from datetime import datetime, timedelta
 
 import yfinance as yf
 
+from .market_data import yf_download
+
 logger = logging.getLogger(__name__)
 
 _DEFAULT_SYMBOLS: list[str] = [
@@ -55,7 +57,7 @@ def scan_anomalies(
         end = datetime.now()
         start = end - timedelta(days=fetch_days)
 
-        df = yf.download(
+        df = yf_download(
             symbols,
             start=start.strftime("%Y-%m-%d"),
             end=end.strftime("%Y-%m-%d"),
@@ -115,7 +117,7 @@ def scan_volume_leaders(
         end = datetime.now()
         start = end - timedelta(days=40)  # ~20 trading days with buffer
 
-        df = yf.download(
+        df = yf_download(
             symbols,
             start=start.strftime("%Y-%m-%d"),
             end=end.strftime("%Y-%m-%d"),
@@ -195,7 +197,7 @@ def scan_gap_movers(
         end = datetime.now()
         start = end - timedelta(days=10)  # need today + previous close
 
-        df = yf.download(
+        df = yf_download(
             symbols,
             start=start.strftime("%Y-%m-%d"),
             end=end.strftime("%Y-%m-%d"),

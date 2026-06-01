@@ -5,6 +5,8 @@ empty container — callers never need to handle yfinance errors.
 """
 
 import logging
+import threading
+import time
 from statistics import median
 
 import yfinance as yf
@@ -12,6 +14,86 @@ import yfinance as yf
 from .utils import TRADING_DAYS_PER_YEAR, safe_round
 
 logger = logging.getLogger(__name__)
+
+# ── Browser-impersonating session ─────────────────────────────────────────────
+# Yahoo blocks requests whose TLS fingerprint looks like a bot/datacenter client,
+# which is why yfinance works on a laptop but 429s on Streamlit Cloud / AWS / GCP.
+# A curl_cffi session impersonating Chrome presents a real browser fingerprint,
+# which is the standard remedy for cloud-host rate-limiting.
+def _make_session():
+    try:
+        from curl_cffi import requests as cffi_requests
+        return cffi_requests.Session(impersonate="chrome")
+    except Exception as e:  # pragma: no cover - depends on optional dep
+        logger.warning(
+            "curl_cffi session unavailable (%s); yfinance will use its default "
+            "session and may be rate-limited on cloud hosts", e
+        )
+        return None
+
+
+_SESSION = _make_session()
+
+
+def get_session():
+    """The shared impersonating session (or None). For other modules' yf calls."""
+    return _SESSION
+
+
+def ticker(symbol: str):
+    """Public: yf.Ticker using the impersonating session when available."""
+    return _ticker(symbol)
+
+
+def _ticker(symbol: str):
+    """yf.Ticker using the impersonating session when available."""
+    if _SESSION is not None:
+        try:
+            return yf.Ticker(symbol, session=_SESSION)
+        except TypeError:
+            pass
+    return yf.Ticker(symbol)
+
+
+def yf_download(*args, **kwargs):
+    """yf.download routed through the impersonating session when available."""
+    if _SESSION is not None and "session" not in kwargs:
+        try:
+            return yf.download(*args, session=_SESSION, **kwargs)
+        except TypeError:
+            pass
+    return yf.download(*args, **kwargs)
+
+
+# ── Tiny TTL cache ─────────────────────────────────────────────────────────────
+# The bot rescans the same tickers every cycle and the UI re-queries on each
+# interaction, so the same .info / history is fetched repeatedly. Caching for a
+# short window slashes call volume — the main driver of rate-limiting.
+_CACHE_TTL = 120  # seconds
+_cache: dict = {}
+_cache_lock = threading.Lock()
+
+
+def _cached(key: str, producer):
+    now = time.time()
+    with _cache_lock:
+        hit = _cache.get(key)
+        if hit is not None and now - hit[0] < _CACHE_TTL:
+            return hit[1]
+    value = producer()
+    with _cache_lock:
+        _cache[key] = (now, value)
+    return value
+
+
+def _info(symbol: str) -> dict:
+    """Cached, session-backed Ticker.info (the most rate-limited endpoint)."""
+    return _cached(f"info:{symbol}", lambda: (_ticker(symbol).info or {})) or {}
+
+
+def _history(symbol: str, period: str):
+    """Cached, session-backed price history."""
+    return _cached(f"hist:{symbol}:{period}", lambda: _ticker(symbol).history(period=period))
 
 _FUNDAMENTALS_FIELD_MAP = {
     "trailingPE": "pe_ratio",
@@ -31,7 +113,7 @@ def get_fundamentals(symbol: str) -> dict | None:
     dividend_yield, market_cap, sector, industry.
     """
     try:
-        info = yf.Ticker(symbol).info
+        info = _info(symbol)
         if not info:
             return None
 
@@ -57,16 +139,14 @@ def get_current_price(symbol: str) -> float | None:
     closing price from 1-day history.
     """
     try:
-        ticker = yf.Ticker(symbol)
-        info = ticker.info or {}
-        price = info.get("currentPrice")
-        if price is not None:
-            return float(price)
+        # History first — the chart endpoint stays reachable from cloud IPs even
+        # when the .info/quote endpoint is rate-limited.
+        hist = _history(symbol, "1d")
+        if hist is not None and not hist.empty:
+            return float(hist["Close"].iloc[-1])
 
-        hist = ticker.history(period="1d")
-        if hist.empty:
-            return None
-        return float(hist["Close"].iloc[-1])
+        price = _info(symbol).get("currentPrice")
+        return float(price) if price is not None else None
     except Exception:
         logger.exception("get_current_price failed for %s", symbol)
         return None
@@ -80,8 +160,8 @@ def get_momentum_signals(symbol: str) -> dict | None:
     relative_strength, max_drawdown.
     """
     try:
-        hist = yf.Ticker(symbol).history(period="6mo")
-        if hist.empty or len(hist) < 30:
+        hist = _history(symbol, "6mo")
+        if hist is None or hist.empty or len(hist) < 30:
             return None
 
         closes = hist["Close"]
@@ -111,8 +191,8 @@ def get_momentum_signals(symbol: str) -> dict | None:
         relative_strength = None
         if momentum_90d is not None:
             try:
-                spy_hist = yf.Ticker("SPY").history(period="6mo")
-                if not spy_hist.empty and len(spy_hist) >= 90:
+                spy_hist = _history("SPY", "6mo")
+                if spy_hist is not None and not spy_hist.empty and len(spy_hist) >= 90:
                     spy_return = spy_hist["Close"].iloc[-1] / spy_hist["Close"].iloc[-90] - 1
                     if spy_return != 0:
                         relative_strength = momentum_90d / spy_return
