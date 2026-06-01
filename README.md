@@ -226,6 +226,10 @@ To set an env var in Claude Desktop / Cursor, add an `"env"` block to the config
   (`pip install financial-mcp-server`, then use `"command": "financial-mcp"`).
 - **Want to confirm the package runs at all?** → `uvx financial-mcp-server --help`.
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for what changed in each release.
+
 ## License
 
 MIT
