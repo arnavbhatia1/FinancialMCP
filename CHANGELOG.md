@@ -3,6 +3,14 @@
 All notable changes to **financial-mcp-server** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.1.11] - 2026-06-01
+
+### Added
+- `scan_universe` now returns the latest `price` for each scored symbol, fetched
+  in a single batched `yf.download` (`market_data.get_batch_prices`). Callers
+  (e.g. an autonomous trading bot) can rank a universe *and* size positions from
+  one tool call instead of issuing a separate price lookup per ticker.
+
 ## [0.1.10] - 2026-06-01
 
 ### Fixed

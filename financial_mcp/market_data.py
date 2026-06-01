@@ -216,6 +216,46 @@ def get_momentum_signals(symbol: str) -> dict | None:
         return None
 
 
+def get_batch_prices(symbols: list[str]) -> dict[str, float]:
+    """Return the latest close for each symbol from a single batched download.
+
+    One ``yf.download`` call covers the whole list, so scoring a 25-symbol
+    universe costs one network round-trip for prices instead of N. Symbols with
+    no data are simply omitted. Falls back to per-symbol lookup only for the
+    handful that the batch misses.
+    """
+    symbols = [s for s in dict.fromkeys(s.upper() for s in symbols)]  # dedupe, keep order
+    if not symbols:
+        return {}
+
+    prices: dict[str, float] = {}
+    try:
+        df = yf_download(symbols, period="2d", progress=False, group_by="column")
+        if df is not None and not df.empty:
+            close = df["Close"] if "Close" in df.columns else None
+            if close is not None:
+                # Multi-symbol → DataFrame of symbol columns; single → Series.
+                if hasattr(close, "columns"):
+                    for sym in close.columns:
+                        series = close[sym].dropna()
+                        if not series.empty:
+                            prices[str(sym).upper()] = float(series.iloc[-1])
+                else:
+                    series = close.dropna()
+                    if not series.empty:
+                        prices[symbols[0]] = float(series.iloc[-1])
+    except Exception:
+        logger.exception("get_batch_prices: batch download failed")
+
+    # Backfill any symbols the batch didn't cover (rare; e.g. odd tickers).
+    for sym in symbols:
+        if sym not in prices:
+            p = get_current_price(sym)
+            if p is not None:
+                prices[sym] = p
+    return prices
+
+
 def get_batch_fundamentals(symbols: list[str]) -> dict[str, dict]:
     """Return fundamentals for each symbol in *symbols*.
 

@@ -364,6 +364,11 @@ def score_universe(
     batch_fundamentals = market_data.get_batch_fundamentals(symbols)
     sector_medians = market_data.get_sector_medians(batch_fundamentals)
 
+    # Latest prices in one batched download so callers (e.g. the trading bot)
+    # can size positions from the same scan_universe call instead of issuing a
+    # separate price lookup per symbol.
+    batch_prices = market_data.get_batch_prices(symbols)
+
     # Gather momentum signals for the full universe so percentile ranks are
     # computed against the complete peer set.
     momentum_by_symbol: dict[str, dict | None] = {}
@@ -390,6 +395,7 @@ def score_universe(
                 risk_profile=risk_profile,
                 config=config,
             )
+            result["price"] = batch_prices.get(sym)
             results.append(result)
         except Exception:
             logger.error("Scoring failed for %s", sym, exc_info=True)
