@@ -18,7 +18,7 @@ def test_percentile_rank():
     assert engine.percentile_rank(-1, [0, 5, 10]) == 0.0
 
 
-def test_score_ticker_no_data_is_bounded():
+def test_score_ticker_no_data_is_neutral():
     result = engine.score_ticker(
         symbol="TEST",
         fundamentals=None,
@@ -27,11 +27,10 @@ def test_score_ticker_no_data_is_bounded():
         sector_medians=None,
     )
     assert result["symbol"] == "TEST"
-    # NOTE/quirk: with no fundamentals/momentum and no portfolio context, the
-    # risk penalty is 0 (inverted to 100), so the only active signal yields a
-    # top score of 100 rather than a neutral 50. Documented here, not fixed in
-    # this release — changing it would alter scoring semantics. See tasks/todo.md.
-    assert 0.0 <= result["score"] <= 100.0
+    # With no valuation/momentum/sentiment signal there is nothing to score, so
+    # the result must be a neutral 50 (not 100 from an inverted zero risk
+    # penalty). Regression guard for the fix shipped in v0.1.8.
+    assert result["score"] == 50.0
 
 
 def test_score_ticker_bounded_with_synthetic_data():

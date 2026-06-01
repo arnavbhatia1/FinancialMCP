@@ -32,7 +32,11 @@ jobs:
         run: pip install -e ".[test]"
 
       - name: Run tests
-        run: pytest -q   # Failure here blocks the publish below
+        run: pytest -q   # offline only (addopts skips 'network'); blocks publish
+
+      - name: Live data smoke (non-blocking)
+        continue-on-error: true   # third-party API outages shouldn't block a release
+        run: pytest -m network -q
 
       - name: Get next version
         id: version

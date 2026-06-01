@@ -31,6 +31,14 @@ dependencies = [
 [project.optional-dependencies]
 test = ["pytest>=7.0"]
 
+[tool.pytest.ini_options]
+# Network/live-data tests are opt-in: the default run (and the publish gate)
+# stays deterministic and offline. Run live checks with `pytest -m network`.
+addopts = "-m 'not network'"
+markers = [
+    "network: hits real third-party data APIs (yfinance, Treasury, SEC, ...)",
+]
+
 [project.urls]
 Homepage = "https://github.com/arnavbhat1/financial-mcp"
 Repository = "https://github.com/arnavbhat1/financial-mcp"

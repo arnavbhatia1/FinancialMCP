@@ -32,12 +32,19 @@ and add a test gate so bad commits don't auto-publish.
 - [ ] **8. Verify**: `pytest` green locally + `python -m build` succeeds
 - [ ] **9. Commit + push to master** (triggers auto-publish of v0.1.7) — only after user OK
 
-## Follow-ups found during this release (not fixed here)
-- **Scoring quirk:** a ticker with no fundamentals/momentum and no portfolio
-  context scores **100**, not a neutral 50 — `compute_risk_penalty` returns 0
-  (inverted to 100) and is never `None`, so the "all signals None -> 50" branch
-  in `score_ticker` is effectively dead. Decide intended behavior before changing
-  (would alter scoring semantics for every no-data ticker).
+## v0.1.8 — data-layer fixes (done)
+- [x] **#1 Treasury rates**: filtered on `security_type_desc` (Marketable/Non-marketable)
+  instead of `security_desc` (Treasury Bills/Notes/...) -> always empty. Fixed +
+  widened page size for small `days`. Verified live (12 rows).
+- [x] **#2 Treasury daily yield curve**: legacy `data.treasury.gov` OData feed was
+  retired (now returns HTML). Switched to Treasury's daily-yield-curve XML feed,
+  parsed with stdlib ElementTree. Verified live (real 1mo-30yr yields).
+- [skip] **#3 FRED / Trends**: require the user's own API key — not validated here.
+- [x] **#4 Scoring quirk**: no-data ticker now returns neutral 50 (risk is a penalty,
+  not evidence of value), instead of 100 from an inverted zero penalty.
+- [x] **#5 Live tests**: `tests/test_live.py` (`@network`), opt-in via `pytest -m network`;
+  CI runs them non-blocking so data regressions are visible without gating releases on
+  third-party API uptime.
 
 ## Out of scope (future — Full tier)
 TTL cache for external APIs, new tools (options/IV, earnings, analyst ratings),

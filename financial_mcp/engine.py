@@ -287,6 +287,28 @@ def score_ticker(
     if use_sentiment:
         composites["sentiment"] = sentiment
 
+    # The risk component is a *penalty*, not evidence of value. On its own —
+    # with no valuation, momentum, or sentiment signal — it carries no
+    # information, so a ticker with no real data must score a neutral 50 rather
+    # than a misleading 100 (which is what a zero penalty inverts to).
+    data_keys = [
+        k for k in ("valuation", "momentum", "sentiment")
+        if composites.get(k) is not None
+    ]
+    if not data_keys:
+        risk_penalty = (
+            round(composites["risk"], 2)
+            if composites.get("risk") is not None else 0.0
+        )
+        return {
+            "symbol": symbol,
+            "score": 50.0,
+            "valuation": None,
+            "momentum": None,
+            "risk_penalty": risk_penalty,
+            "sentiment": sentiment,
+        }
+
     # For risk, the penalty *reduces* the score.  We invert it so the
     # weighted-sum formula can treat every signal uniformly (higher = better).
     if composites["risk"] is not None:
@@ -295,17 +317,6 @@ def score_ticker(
     # Redistribute weight of any None composite to the remaining signals.
     none_keys = [k for k, v in composites.items() if v is None]
     active_keys = [k for k, v in composites.items() if v is not None]
-
-    if not active_keys:
-        # Nothing computable — return a neutral score.
-        return {
-            "symbol": symbol,
-            "score": 50.0,
-            "valuation": None,
-            "momentum": None,
-            "risk_penalty": 0.0,
-            "sentiment": sentiment,
-        }
 
     redistributed_weight = sum(weights[k] for k in none_keys)
     active_total = sum(weights[k] for k in active_keys)

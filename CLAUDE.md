@@ -13,7 +13,8 @@ MCP-compatible AI agent. Published to PyPI as `financial-mcp-server`.
 ## Commands
 - Run (stdio, default): `financial-mcp`  ·  SSE: `financial-mcp --transport sse`
 - Install for dev: `pip install -e ".[test]"`
-- Test: `pytest -q`
+- Test (offline, the publish gate): `pytest -q`
+- Test (live data, opt-in): `pytest -m network`
 - Build: `python -m build`
 
 ## Transport
@@ -33,7 +34,8 @@ Optional: `FRED_API_KEY`, `FINANCIAL_MCP_DB_PATH` (default `~/.financial-mcp/fin
 - `financial_mcp/market_data.py` — yfinance access
 - `financial_mcp/{sec_edgar,fred,cftc,trends,treasury,regime,anomaly}.py` — data-source modules
 - `financial_mcp/{db,portfolio,broker,risk}.py` — paper-trading layer
-- `tests/` — offline only (no network); mirror tool count in `test_server.py`
+- `tests/` — offline by default; `test_live.py` holds opt-in `@network` tests.
+  Mirror the registered tool count in `test_server.py`
 
 ## Conventions
 - Every tool wraps its body in try/except and returns JSON via `_json` / `_error`.
