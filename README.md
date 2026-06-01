@@ -2,11 +2,127 @@
 
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/financial-mcp-server?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/financial-mcp-server)
 
-MCP server for AI-powered stock market intelligence. 33 tools for any MCP-compatible AI agent.
+Give your AI agent real stock-market data. This is an [MCP](https://modelcontextprotocol.io)
+server with **33 tools** for prices, fundamentals, SEC filings, macro data, futures
+positioning, market-regime detection, and paper trading — usable by any MCP-compatible
+LLM or agent (Claude, Cursor, and more).
 
-No API keys required (FRED key optional). Market data from yfinance, SEC EDGAR, CFTC, Treasury.gov, and Google Trends.
+**No API keys required** to get started. Data comes from yfinance, SEC EDGAR, CFTC,
+Treasury.gov, and Google Trends.
 
-## Tools
+---
+
+## Quick start (2 minutes)
+
+You connect this server to your AI app once, then just talk to your agent normally —
+it calls the tools for you. There's nothing to run yourself.
+
+### Step 1 — Install a launcher
+
+You need **one** of these on your machine:
+
+- **uv** (recommended — runs the server without installing it):
+  ```bash
+  # macOS / Linux
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  # Windows (PowerShell)
+  powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+  ```
+- **or pip** (Python 3.10+ already installed):
+  ```bash
+  pip install financial-mcp-server
+  ```
+
+### Step 2 — Add it to your AI app
+
+Pick your app below, paste the config, and restart the app. **That's it.**
+
+<details open>
+<summary><b>Claude Desktop</b></summary>
+
+Open your config file (create it if it doesn't exist):
+
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+
+Add this, then fully quit and reopen Claude Desktop:
+
+```json
+{
+  "mcpServers": {
+    "financial-mcp": {
+      "command": "uvx",
+      "args": ["financial-mcp-server"]
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary><b>Claude Code</b></summary>
+
+One command:
+
+```bash
+claude mcp add financial-mcp -- uvx financial-mcp-server
+```
+</details>
+
+<details>
+<summary><b>Cursor</b></summary>
+
+Create `.cursor/mcp.json` in your project (or `~/.cursor/mcp.json` for all projects):
+
+```json
+{
+  "mcpServers": {
+    "financial-mcp": {
+      "command": "uvx",
+      "args": ["financial-mcp-server"]
+    }
+  }
+}
+```
+Then enable it in **Settings → MCP**.
+</details>
+
+<details>
+<summary><b>Any other MCP client (Windsurf, custom agents, SDKs…)</b></summary>
+
+Configure an MCP server that launches this command over **stdio**:
+
+```
+command: uvx
+args:    ["financial-mcp-server"]
+```
+
+If you installed with pip instead of uv, the command is just `financial-mcp`
+(no args). Most clients use the same `mcpServers` JSON shape shown above.
+</details>
+
+> **Using `pip` instead of `uv`?** Replace `"command": "uvx", "args": ["financial-mcp-server"]`
+> with `"command": "financial-mcp"` everywhere above.
+
+### Step 3 — Verify it's working
+
+In your agent, ask:
+
+> **"What's the current price of AAPL?"**
+
+If it answers with a live price, you're connected. Other things to try:
+
+> - "Analyze NVDA — fundamentals, momentum, and a score."
+> - "What market regime are we in right now?"
+> - "Show me recent SEC 10-K filings for Microsoft."
+> - "Scan AAPL, MSFT, GOOGL, AMZN and rank them."
+
+---
+
+## What you can ask for (all 33 tools)
+
+You don't call these directly — your agent picks the right one from your question.
+This is just a reference for what's available.
 
 ### Analysis & Scoring
 | Tool | What it does |
@@ -69,54 +185,46 @@ No API keys required (FRED key optional). Market data from yfinance, SEC EDGAR, 
 | `run_rebalance` | Score a universe and execute buy/sell signals |
 | `check_risk` | Stress score, scenario drawdowns, concentration |
 
-Paper-trading state is stored in a local SQLite DB (see `FINANCIAL_MCP_DB_PATH` below).
+Paper trades are saved to a local SQLite file (see `FINANCIAL_MCP_DB_PATH` below).
 
-## Install
+---
 
-**pip:**
-```bash
-pip install financial-mcp-server
-financial-mcp
-```
+## Optional settings
 
-**uvx (no install):**
-```bash
-uvx financial-mcp-server
-```
+Everything works out of the box. These are only if you want to customize:
 
-**Claude Desktop** (`claude_desktop_config.json`):
+| Environment variable | What it does | Default |
+|----------------------|--------------|---------|
+| `FRED_API_KEY` | Unlocks the FRED macro tools — [grab a free key](https://fred.stlouisfed.org/docs/api/api_key.html) | unset (FRED tools limited) |
+| `FINANCIAL_MCP_DB_PATH` | Where paper-trading data is stored | `~/.financial-mcp/financial_mcp.db` |
+| `FINANCIAL_MCP_TRANSPORT` | `stdio` (for AI apps) or `sse` (network server) | `stdio` |
+| `FINANCIAL_MCP_CONFIG` | Path to a custom `config.yaml` | built-in defaults |
+
+To set an env var in Claude Desktop / Cursor, add an `"env"` block to the config:
+
 ```json
 {
   "mcpServers": {
     "financial-mcp": {
       "command": "uvx",
-      "args": ["financial-mcp-server"]
+      "args": ["financial-mcp-server"],
+      "env": { "FRED_API_KEY": "your-key-here" }
     }
   }
 }
 ```
 
-**Claude Code:**
-```bash
-claude mcp add financial-mcp -- uvx financial-mcp-server
-```
+**Running as a standalone network server?** `financial-mcp --transport sse`.
 
-## Configuration
+---
 
-The server speaks **stdio** by default (what `uvx`, Claude Desktop, and Claude Code
-use). For a network/SSE server instead, run `financial-mcp --transport sse` (or set
-`FINANCIAL_MCP_TRANSPORT=sse`).
+## Troubleshooting
 
-Optional environment variables:
-
-| Variable | Purpose | Default |
-|----------|---------|---------|
-| `FRED_API_KEY` | Unlocks FRED macro tools ([free key](https://fred.stlouisfed.org/docs/api/api_key.html)) | unset (FRED tools limited) |
-| `FINANCIAL_MCP_DB_PATH` | Where paper-trading SQLite data lives | `~/.financial-mcp/financial_mcp.db` |
-| `FINANCIAL_MCP_CONFIG` | Path to a custom `config.yaml` | bundled defaults |
-| `FINANCIAL_MCP_TRANSPORT` | `stdio` or `sse` | `stdio` |
-
-No config file is required — sensible defaults are built in.
+- **Agent doesn't see the tools** → fully restart the app after editing the config
+  (Claude Desktop must be *quit*, not just closed).
+- **`uvx: command not found`** → install uv (Step 1), or switch to the pip method
+  (`pip install financial-mcp-server`, then use `"command": "financial-mcp"`).
+- **Want to confirm the package runs at all?** → `uvx financial-mcp-server --help`.
 
 ## License
 
