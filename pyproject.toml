@@ -40,9 +40,10 @@ markers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/arnavbhat1/financial-mcp"
-Repository = "https://github.com/arnavbhat1/financial-mcp"
-Issues = "https://github.com/arnavbhat1/financial-mcp/issues"
+Homepage = "https://github.com/arnavbhatia1/FinancialMCP"
+Repository = "https://github.com/arnavbhatia1/FinancialMCP"
+Issues = "https://github.com/arnavbhatia1/FinancialMCP/issues"
+Changelog = "https://github.com/arnavbhatia1/FinancialMCP/blob/master/CHANGELOG.md"
 
 [project.scripts]
 financial-mcp = "financial_mcp.server:main"

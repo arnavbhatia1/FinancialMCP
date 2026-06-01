@@ -3,6 +3,18 @@
 All notable changes to **financial-mcp-server** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.1.9] - 2026-06-01
+
+### Fixed
+- Corrected the PyPI project links (Homepage / Repository / Issues), which
+  pointed at a non-existent `arnavbhat1/financial-mcp` repo and 404'd. They now
+  point to `arnavbhatia1/FinancialMCP`.
+
+### Added
+- `Changelog` project link, so the changelog is reachable from the PyPI sidebar.
+- Automated release notes: every PyPI publish now also creates a matching
+  GitHub Release populated with that version's changelog entry.
+
 ## [0.1.8] - 2026-06-01
 
 ### Fixed
