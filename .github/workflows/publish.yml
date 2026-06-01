@@ -3,6 +3,12 @@ name: Publish to PyPI
 on:
   push:
     branches: [master]
+    # Docs-only commits should not burn a version number or publish.
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "LICENSE"
+      - "tasks/**"
 
 jobs:
   publish:
@@ -21,6 +27,12 @@ jobs:
 
       - name: Install build tools
         run: pip install build setuptools-scm
+
+      - name: Install package + test deps
+        run: pip install -e ".[test]"
+
+      - name: Run tests
+        run: pytest -q   # Failure here blocks the publish below
 
       - name: Get next version
         id: version

@@ -28,6 +28,9 @@ dependencies = [
     "pytrends>=4.9.0",
 ]
 
+[project.optional-dependencies]
+test = ["pytest>=7.0"]
+
 [project.urls]
 Homepage = "https://github.com/arnavbhat1/financial-mcp"
 Repository = "https://github.com/arnavbhat1/financial-mcp"
@@ -46,6 +49,3 @@ local_scheme = "no-local-version"
 
 [tool.setuptools.packages.find]
 include = ["financial_mcp*"]
-
-[tool.setuptools.package-data]
-financial_mcp = ["../config.yaml"]

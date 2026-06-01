@@ -1,9 +1,11 @@
 """FinancialMCP — MCP server for AI-powered stock market intelligence."""
 
+import argparse
 import json
 import logging
 import os
 import sys
+from pathlib import Path
 
 import yaml
 from mcp.server.fastmcp import FastMCP
@@ -20,26 +22,78 @@ logger = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
+# Baseline config so a pip-installed server works with no config.yaml present.
+# A config file (if found) is shallow-merged on top of this.
+DEFAULT_CONFIG: dict = {
+    "server": {"host": "0.0.0.0", "port": 8520, "name": "financial-mcp"},
+    "database": {"path": ""},  # resolved separately; see _resolve_db_path
+    "scoring": {"buy_threshold": 65, "sell_threshold": 35},
+    "position_limits": {
+        "conservative": {"max_position": 0.05, "min_cash": 0.20},
+        "moderate": {"max_position": 0.08, "min_cash": 0.10},
+        "aggressive": {"max_position": 0.12, "min_cash": 0.05},
+    },
+}
+
+
 def _load_config() -> dict:
-    for candidate in [
+    """Load config.yaml if present, merged over DEFAULT_CONFIG.
+
+    Search order: $FINANCIAL_MCP_CONFIG, repo root, CWD. When none exist the
+    embedded defaults are used so the server runs anywhere it's installed.
+    """
+    candidates = [
+        os.environ.get("FINANCIAL_MCP_CONFIG"),
         os.path.join(_root, "config.yaml"),
         os.path.join(os.getcwd(), "config.yaml"),
-    ]:
-        if os.path.exists(candidate):
+    ]
+    loaded: dict = {}
+    for candidate in candidates:
+        if candidate and os.path.exists(candidate):
             with open(candidate) as f:
-                return yaml.safe_load(f)
-    return {}
+                loaded = yaml.safe_load(f) or {}
+            break
+
+    # Shallow merge: file sections override default sections wholesale.
+    merged = {k: dict(v) if isinstance(v, dict) else v for k, v in DEFAULT_CONFIG.items()}
+    for key, value in loaded.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key].update(value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _resolve_db_path(config: dict) -> str:
+    """Pick a writable SQLite path.
+
+    Precedence: $FINANCIAL_MCP_DB_PATH > absolute config path > ~/.financial-mcp/.
+    Never defaults under site-packages, which is typically read-only when the
+    package is pip-installed.
+    """
+    env_path = os.environ.get("FINANCIAL_MCP_DB_PATH")
+    if env_path:
+        return os.path.expanduser(env_path)
+
+    cfg_path = (config.get("database") or {}).get("path") or ""
+    if cfg_path and os.path.isabs(cfg_path):
+        return cfg_path
+
+    return str(Path.home() / ".financial-mcp" / "financial_mcp.db")
 
 
 _config = _load_config()
 _server_cfg = _config.get("server", {})
 
-# Set DB path from config
-_db_path = _config.get("database", {}).get("path", "data/financial_mcp.db")
-if not os.path.isabs(_db_path):
-    _db_path = os.path.join(_root, _db_path)
+# Resolve a writable DB path and initialize. Guarded so that, even if the
+# location is unwritable, the read-only market/macro tools still load.
+_db_path = _resolve_db_path(_config)
 db.set_db_path(_db_path)
-db.init_db()
+try:
+    db.init_db()
+except Exception:
+    logger.exception("Could not initialize database at %s; "
+                     "portfolio/trading tools will be unavailable", _db_path)
 
 # ── MCP Server ────────────────────────────────────────────────────────────────
 
@@ -792,11 +846,36 @@ def check_risk(portfolio_id: str) -> str:
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main():
-    """Run the MCP server with SSE transport."""
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
-    logger.info("Starting FinancialMCP server on %s:%s",
-                _server_cfg.get("host", "0.0.0.0"), _server_cfg.get("port", 8520))
-    mcp.run(transport="sse")
+    """Run the MCP server.
+
+    Defaults to stdio — the transport used by ``uvx``, Claude Desktop, and
+    Claude Code. Use ``--transport sse`` (or ``FINANCIAL_MCP_TRANSPORT=sse``)
+    for the network/SSE server. All logging goes to stderr so it never
+    corrupts the stdio JSON-RPC channel on stdout.
+    """
+    parser = argparse.ArgumentParser(prog="financial-mcp",
+                                     description="MCP server for stock market intelligence")
+    parser.add_argument(
+        "--transport",
+        choices=["stdio", "sse"],
+        default=os.environ.get("FINANCIAL_MCP_TRANSPORT", "stdio"),
+        help="Transport to use (default: stdio).",
+    )
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+        stream=sys.stderr,
+    )
+
+    if args.transport == "sse":
+        logger.info("Starting FinancialMCP (SSE) on %s:%s",
+                    _server_cfg.get("host", "0.0.0.0"), _server_cfg.get("port", 8520))
+        mcp.run(transport="sse")
+    else:
+        logger.info("Starting FinancialMCP (stdio)")
+        mcp.run(transport="stdio")
 
 
 if __name__ == "__main__":

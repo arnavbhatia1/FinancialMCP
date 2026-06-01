@@ -1,6 +1,8 @@
 # financial-mcp-server
 
-MCP server for AI-powered stock market intelligence. 24 tools for any MCP-compatible AI agent.
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/financial-mcp-server?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/financial-mcp-server)
+
+MCP server for AI-powered stock market intelligence. 33 tools for any MCP-compatible AI agent.
 
 No API keys required (FRED key optional). Market data from yfinance, SEC EDGAR, CFTC, Treasury.gov, and Google Trends.
 
@@ -55,6 +57,20 @@ No API keys required (FRED key optional). Market data from yfinance, SEC EDGAR, 
 | `scan_volume_leaders` | Unusual volume detection |
 | `scan_gap_movers` | Significant gap ups/downs at open |
 
+### Portfolio & Paper Trading
+| Tool | What it does |
+|------|-------------|
+| `create_portfolio` | Start a paper portfolio (capital, risk profile, horizon) |
+| `analyze_portfolio` | Holdings, allocations, performance, and risk summary |
+| `get_holdings` | Current positions with values |
+| `get_trades` | Trade history (filter by status) |
+| `execute_buy` | Buy shares at the current price |
+| `execute_sell` | Sell shares at the current price |
+| `run_rebalance` | Score a universe and execute buy/sell signals |
+| `check_risk` | Stress score, scenario drawdowns, concentration |
+
+Paper-trading state is stored in a local SQLite DB (see `FINANCIAL_MCP_DB_PATH` below).
+
 ## Install
 
 **pip:**
@@ -84,6 +100,23 @@ uvx financial-mcp-server
 ```bash
 claude mcp add financial-mcp -- uvx financial-mcp-server
 ```
+
+## Configuration
+
+The server speaks **stdio** by default (what `uvx`, Claude Desktop, and Claude Code
+use). For a network/SSE server instead, run `financial-mcp --transport sse` (or set
+`FINANCIAL_MCP_TRANSPORT=sse`).
+
+Optional environment variables:
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `FRED_API_KEY` | Unlocks FRED macro tools ([free key](https://fred.stlouisfed.org/docs/api/api_key.html)) | unset (FRED tools limited) |
+| `FINANCIAL_MCP_DB_PATH` | Where paper-trading SQLite data lives | `~/.financial-mcp/financial_mcp.db` |
+| `FINANCIAL_MCP_CONFIG` | Path to a custom `config.yaml` | bundled defaults |
+| `FINANCIAL_MCP_TRANSPORT` | `stdio` or `sse` | `stdio` |
+
+No config file is required — sensible defaults are built in.
 
 ## License
 
