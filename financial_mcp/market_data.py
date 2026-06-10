@@ -95,6 +95,23 @@ def _history(symbol: str, period: str):
     """Cached, session-backed price history."""
     return _cached(f"hist:{symbol}:{period}", lambda: _ticker(symbol).history(period=period))
 
+
+def get_history(symbol: str, period: str = "6mo", interval: str = "1d"):
+    """Cached OHLCV history DataFrame for symbol, or None on failure."""
+    try:
+        # Daily history shares cache entries with _history (same key format).
+        key = (
+            f"hist:{symbol}:{period}"
+            if interval == "1d"
+            else f"hist:{symbol}:{period}:{interval}"
+        )
+        return _cached(
+            key, lambda: _ticker(symbol).history(period=period, interval=interval)
+        )
+    except Exception:
+        logger.exception("get_history failed for %s", symbol)
+        return None
+
 _FUNDAMENTALS_FIELD_MAP = {
     "trailingPE": "pe_ratio",
     "enterpriseToEbitda": "ev_to_ebitda",

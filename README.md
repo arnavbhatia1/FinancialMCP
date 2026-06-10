@@ -3,9 +3,9 @@
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/financial-mcp-server?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/financial-mcp-server)
 
 Give your AI agent real stock-market data. This is an [MCP](https://modelcontextprotocol.io)
-server with **33 tools** for prices, fundamentals, SEC filings, macro data, futures
-positioning, market-regime detection, and paper trading — usable by any MCP-compatible
-LLM or agent (Claude, Cursor, and more).
+server with **42 tools** for prices, technicals, fundamentals, news, earnings, options,
+analyst ratings, SEC filings, macro data, futures positioning, market-regime detection,
+and paper trading — usable by any MCP-compatible LLM or agent (Claude, Cursor, and more).
 
 **No API keys required** to get started. Data comes from yfinance, SEC EDGAR, CFTC,
 Treasury.gov, and Google Trends.
@@ -113,13 +113,15 @@ In your agent, ask:
 If it answers with a live price, you're connected. Other things to try:
 
 > - "Analyze NVDA — fundamentals, momentum, and a score."
-> - "What market regime are we in right now?"
+> - "What market regime are we in right now? Give me the full market brief."
+> - "Is TSLA overbought? Check the technicals."
+> - "When does AMZN report earnings, and what are analysts expecting?"
 > - "Show me recent SEC 10-K filings for Microsoft."
 > - "Scan AAPL, MSFT, GOOGL, AMZN and rank them."
 
 ---
 
-## What you can ask for (all 33 tools)
+## What you can ask for (all 42 tools)
 
 You don't call these directly — your agent picks the right one from your question.
 This is just a reference for what's available.
@@ -134,6 +136,20 @@ This is just a reference for what's available.
 | `get_momentum` | 30d/90d momentum, volatility, relative strength |
 | `get_price` | Current price |
 
+### Price Action & Technicals
+| Tool | What it does |
+|------|-------------|
+| `get_price_history` | OHLCV bars for any period/interval (1m to monthly) |
+| `get_technical_indicators` | RSI, MACD, SMAs, Bollinger, ATR, 52w levels + plain-English summary |
+
+### Company Intelligence
+| Tool | What it does |
+|------|-------------|
+| `get_ticker_news` | Latest headlines with publisher, date, and summary |
+| `get_earnings_info` | Next earnings date, EPS estimates, recent surprises |
+| `get_analyst_ratings` | Price targets, upside, recommendation trend |
+| `get_options_snapshot` | Put/call ratios, ATM implied volatility, max pain |
+
 ### SEC EDGAR
 | Tool | What it does |
 |------|-------------|
@@ -145,6 +161,7 @@ This is just a reference for what's available.
 | Tool | What it does |
 |------|-------------|
 | `get_economic_indicator` | Any FRED series (GDP, CPI, unemployment, etc.) |
+| `search_fred_series` | Find the right FRED series ID by keyword |
 | `get_yield_curve` | Treasury yield curve with inversion detection |
 | `get_economic_snapshot` | Key indicators at a glance |
 | `get_treasury_rates` | Average Treasury interest rates |
@@ -166,9 +183,11 @@ This is just a reference for what's available.
 ### Market Intelligence
 | Tool | What it does |
 |------|-------------|
+| `get_market_brief` | One-call situational awareness: regime + VIX + sectors + yields |
 | `detect_market_regime` | BULL / BEAR / SIDEWAYS / HIGH_VOLATILITY / CRASH |
 | `get_regime_history` | Monthly regime classification |
 | `get_vix_analysis` | VIX level, percentile, fear signal |
+| `get_sector_performance` | All 11 sector ETFs ranked vs SPY (1d/5d/1mo/3mo) |
 | `scan_anomalies` | Volume spikes, gaps, 52w extremes, divergences |
 | `scan_volume_leaders` | Unusual volume detection |
 | `scan_gap_movers` | Significant gap ups/downs at open |

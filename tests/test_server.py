@@ -3,13 +3,16 @@
 from financial_mcp import server
 
 # Keep in sync with the tools documented in README.md.
-EXPECTED_TOOL_COUNT = 33
+EXPECTED_TOOL_COUNT = 42
 
 EXPECTED_SAMPLE = {
     "analyze_ticker", "scan_universe", "get_price",
     "get_sec_filings", "get_economic_indicator", "get_futures_positioning",
     "get_search_trends", "get_treasury_rates", "detect_market_regime",
     "scan_anomalies", "create_portfolio", "execute_buy", "run_rebalance",
+    "get_price_history", "get_technical_indicators", "get_sector_performance",
+    "get_ticker_news", "get_earnings_info", "get_analyst_ratings",
+    "get_options_snapshot", "get_market_brief", "search_fred_series",
 }
 
 

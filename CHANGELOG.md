@@ -3,6 +3,36 @@
 All notable changes to **financial-mcp-server** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.1.12] - 2026-06-10
+
+### Added
+Nine new tools (33 → 42) so agents can see price action, events, and
+positioning — not just fundamentals:
+
+- **Price action & technicals** (`financial_mcp/technicals.py`):
+  - `get_price_history` — raw OHLCV bars for any period/interval.
+  - `get_technical_indicators` — RSI(14), MACD(12/26/9), SMA 20/50/200,
+    Bollinger Bands, ATR, 52-week levels, volume ratio, golden/death cross,
+    plus a plain-English `summary` an LLM can read at a glance.
+  - `get_sector_performance` — the 11 SPDR sector ETFs vs SPY over
+    1d/5d/1mo/3mo, ranked, with leaders/laggards (one batched download).
+- **Company intelligence** (`financial_mcp/company.py`):
+  - `get_ticker_news` — latest headlines (handles both yfinance news shapes).
+  - `get_earnings_info` — next earnings date, EPS estimates, recent surprises.
+  - `get_analyst_ratings` — price targets, upside %, recommendation trend.
+  - `get_options_snapshot` — put/call volume & OI ratios, ATM implied
+    volatility, max pain, sentiment hint.
+- **Macro & market**:
+  - `search_fred_series` — find FRED series IDs by keyword (the FRED search
+    API existed in the client but was never exposed as a tool).
+  - `get_market_brief` — one-call situational awareness composing regime,
+    VIX, sector rotation, and the Treasury yield curve; each part degrades
+    independently so one upstream outage can't blank the brief.
+- `market_data.get_history` — public TTL-cached OHLCV accessor shared by the
+  new technical layer.
+- Offline unit tests for all new computation/parsing logic (indicator math,
+  news/earnings/recommendation parsers, options metrics, max pain).
+
 ## [0.1.11] - 2026-06-01
 
 ### Added

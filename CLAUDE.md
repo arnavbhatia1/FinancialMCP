@@ -1,6 +1,6 @@
 # CLAUDE.md — financial-mcp-server
 
-MCP server exposing 33 stock-market / macro / paper-trading tools to any
+MCP server exposing 42 stock-market / macro / paper-trading tools to any
 MCP-compatible AI agent. Published to PyPI as `financial-mcp-server`.
 
 ## Tech stack
@@ -31,7 +31,11 @@ Optional: `FRED_API_KEY`, `FINANCIAL_MCP_DB_PATH` (default `~/.financial-mcp/fin
 - `financial_mcp/server.py` — FastMCP app + all `@mcp.tool()` definitions (the registry)
 - `financial_mcp/engine.py` — composite scoring (valuation/momentum/risk); weights are
   code constants, not config
-- `financial_mcp/market_data.py` — yfinance access
+- `financial_mcp/market_data.py` — yfinance access (shared session + TTL cache)
+- `financial_mcp/technicals.py` — OHLCV history, technical indicators, sector performance
+  (pure computation split from fetching for offline tests)
+- `financial_mcp/company.py` — news, earnings, analyst ratings, options snapshot
+  (pure parsers split from fetching for offline tests)
 - `financial_mcp/{sec_edgar,fred,cftc,trends,treasury,regime,anomaly}.py` — data-source modules
 - `financial_mcp/{db,portfolio,broker,risk}.py` — paper-trading layer
 - `tests/` — offline by default; `test_live.py` holds opt-in `@network` tests.

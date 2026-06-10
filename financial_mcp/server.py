@@ -17,6 +17,7 @@ if _root not in sys.path:
 
 from financial_mcp import market_data, engine, db, broker, portfolio, risk
 from financial_mcp import sec_edgar, fred, cftc, trends, treasury, regime, anomaly
+from financial_mcp import technicals, company
 
 logger = logging.getLogger(__name__)
 
@@ -265,6 +266,123 @@ def score_ticker(symbol: str, sentiment: str = "") -> str:
         return _error("score_ticker", str(e))
 
 
+# ── Price Action & Technicals Tools ──────────────────────────────────────────
+
+@mcp.tool()
+def get_price_history(symbol: str, period: str = "3mo", interval: str = "1d") -> str:
+    """Get OHLCV price bars for a ticker.
+
+    Args:
+        symbol: Ticker symbol.
+        period: One of 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, max.
+        interval: One of 1m, 5m, 15m, 30m, 1h, 1d, 1wk, 1mo (intraday intervals only work for short periods).
+    """
+    try:
+        symbol = symbol.upper().strip()
+        data = technicals.get_price_history(symbol, period, interval)
+        if data is None:
+            return _error("get_price_history", f"No price history for {symbol}")
+        return _json(data)
+    except Exception as e:
+        logger.exception("get_price_history failed for %s", symbol)
+        return _error("get_price_history", str(e))
+
+
+@mcp.tool()
+def get_technical_indicators(symbol: str) -> str:
+    """Get technical indicators for a ticker: RSI, MACD, SMAs (20/50/200), Bollinger Bands, ATR, 52-week levels, volume ratio — plus a plain-English summary of the signals."""
+    try:
+        symbol = symbol.upper().strip()
+        data = technicals.get_technical_indicators(symbol)
+        if data is None:
+            return _error("get_technical_indicators", f"Not enough history for {symbol}")
+        return _json(data)
+    except Exception as e:
+        logger.exception("get_technical_indicators failed for %s", symbol)
+        return _error("get_technical_indicators", str(e))
+
+
+@mcp.tool()
+def get_sector_performance() -> str:
+    """Get performance of all 11 S&P sector ETFs vs SPY over 1d/5d/1mo/3mo, ranked, with leaders and laggards — a one-call view of sector rotation."""
+    try:
+        data = technicals.get_sector_performance()
+        if data is None:
+            return _error("get_sector_performance", "Could not fetch sector data")
+        return _json(data)
+    except Exception as e:
+        logger.exception("get_sector_performance failed")
+        return _error("get_sector_performance", str(e))
+
+
+# ── Company Intelligence Tools ───────────────────────────────────────────────
+
+@mcp.tool()
+def get_ticker_news(symbol: str, count: int = 10) -> str:
+    """Get the latest news headlines for a ticker with publisher, date, and summary.
+
+    Args:
+        symbol: Ticker symbol.
+        count: Max headlines to return.
+    """
+    try:
+        symbol = symbol.upper().strip()
+        data = company.get_ticker_news(symbol, count)
+        if data is None:
+            return _error("get_ticker_news", f"Could not fetch news for {symbol}")
+        return _json(data)
+    except Exception as e:
+        logger.exception("get_ticker_news failed for %s", symbol)
+        return _error("get_ticker_news", str(e))
+
+
+@mcp.tool()
+def get_earnings_info(symbol: str) -> str:
+    """Get earnings data for a ticker: next earnings date, EPS estimate, and recent quarters' estimate vs actual with surprise %. Critical before holding through an earnings event."""
+    try:
+        symbol = symbol.upper().strip()
+        data = company.get_earnings_info(symbol)
+        if data is None:
+            return _error("get_earnings_info", f"No earnings data for {symbol}")
+        return _json(data)
+    except Exception as e:
+        logger.exception("get_earnings_info failed for %s", symbol)
+        return _error("get_earnings_info", str(e))
+
+
+@mcp.tool()
+def get_analyst_ratings(symbol: str) -> str:
+    """Get analyst price targets (mean/high/low), upside vs current price, consensus recommendation, and the monthly recommendation trend."""
+    try:
+        symbol = symbol.upper().strip()
+        data = company.get_analyst_ratings(symbol)
+        if data is None:
+            return _error("get_analyst_ratings", f"No analyst data for {symbol}")
+        return _json(data)
+    except Exception as e:
+        logger.exception("get_analyst_ratings failed for %s", symbol)
+        return _error("get_analyst_ratings", str(e))
+
+
+@mcp.tool()
+def get_options_snapshot(symbol: str, expiry: str = "") -> str:
+    """Get an options-market snapshot for a ticker: put/call volume and open-interest ratios, ATM implied volatility, and max pain for one expiry.
+
+    Args:
+        symbol: Ticker symbol.
+        expiry: Optional expiry date (YYYY-MM-DD). Defaults to the nearest expiry.
+    """
+    try:
+        symbol = symbol.upper().strip()
+        data = company.get_options_snapshot(symbol, expiry.strip())
+        if data is None:
+            return _error("get_options_snapshot", f"No options data for {symbol}")
+        return _json(data)
+    except Exception as e:
+        logger.exception("get_options_snapshot failed for %s", symbol)
+        return _error("get_options_snapshot", str(e))
+
+
 # ── SEC EDGAR Tools ───────────────────────────────────────────────────────────
 
 @mcp.tool()
@@ -370,6 +488,24 @@ def get_economic_snapshot() -> str:
     except Exception as e:
         logger.exception("get_economic_snapshot failed")
         return _error("get_economic_snapshot", str(e))
+
+
+@mcp.tool()
+def search_fred_series(query: str, limit: int = 10) -> str:
+    """Search FRED for economic data series by keyword — use this to find the right series ID before calling get_economic_indicator.
+
+    Args:
+        query: Free-text search (e.g. 'consumer price index', 'mortgage rate').
+        limit: Max results.
+    """
+    try:
+        results = fred.search_series(query, limit=limit)
+        if results is None:
+            return _error("search_fred_series", f"Search failed for '{query}'")
+        return _json({"query": query, "count": len(results), "results": results})
+    except Exception as e:
+        logger.exception("search_fred_series failed")
+        return _error("search_fred_series", str(e))
 
 
 # ── CFTC COT Tools ───────────────────────────────────────────────────────────
@@ -493,6 +629,49 @@ def get_treasury_auctions(security_type: str = "", days: int = 30) -> str:
 
 
 # ── Market Regime Tools ──────────────────────────────────────────────────────
+
+@mcp.tool()
+def get_market_brief() -> str:
+    """One-call market situational awareness: regime (BULL/BEAR/...), VIX analysis, sector rotation (leaders/laggards), and the Treasury yield curve. Each section degrades independently if its data source is down — call this first to orient before deeper analysis."""
+    try:
+        brief: dict = {}
+
+        try:
+            brief["regime"] = regime.detect_regime()
+        except Exception:
+            logger.exception("market_brief: regime failed")
+            brief["regime"] = None
+
+        try:
+            brief["vix"] = regime.get_vix_analysis()
+        except Exception:
+            logger.exception("market_brief: vix failed")
+            brief["vix"] = None
+
+        try:
+            brief["sectors"] = technicals.get_sector_performance()
+        except Exception:
+            logger.exception("market_brief: sectors failed")
+            brief["sectors"] = None
+
+        try:
+            curves = treasury.get_yield_curve_daily(1)
+            brief["yield_curve"] = curves[0] if curves else None
+        except Exception:
+            logger.exception("market_brief: yield curve failed")
+            brief["yield_curve"] = None
+
+        if all(v is None for v in brief.values()):
+            return _error("get_market_brief", "All market data sources unavailable")
+
+        unavailable = [k for k, v in brief.items() if v is None]
+        if unavailable:
+            brief["unavailable"] = unavailable
+        return _json(brief)
+    except Exception as e:
+        logger.exception("get_market_brief failed")
+        return _error("get_market_brief", str(e))
+
 
 @mcp.tool()
 def detect_market_regime() -> str:
